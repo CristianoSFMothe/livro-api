@@ -14,6 +14,8 @@ module.exports = defineConfig({
   e2e: {
     setupNodeEvents(on, config) {
       configurePlugin(on);
+      return config;
     },
+    baseUrl: process.env.BASE_URL || 'http://localhost:5000', // URL do servidor
   },
 });

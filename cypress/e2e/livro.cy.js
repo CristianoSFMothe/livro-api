@@ -46,3 +46,63 @@ describe("/livros POST", () => {
     });
   });
 });
+
+describe("/livros GET por ID", () => {
+  let livroId;
+  const livro = {
+    titulo: "O Senhor dos Anéis",
+    autor: "J.R.R. Tolkien",
+    editora: "HarperCollins",
+    anoPublicacao: 1954,
+    numeroPaginas: 1178,
+  };
+
+  before(() => {
+    // Limpar a coleção antes dos testes
+    cy.dropCollection("livros", {
+      database: "test",
+      failSilently: true,
+    }).then((result) => {
+      cy.log(result);
+    });
+
+    // Criar um livro e armazenar o ID
+    cy.postLivro(livro).then((response) => {
+      expect(response.status).to.equal(201);
+      livroId = response.body._id;
+    });
+  });
+
+  it("Deve consultar um livro com ID válido", () => {
+    cy.request({
+      method: "GET",
+      url: `/api/livros/${livroId}`,
+    }).then((response) => {
+      // Adiciona log para debugging
+      cy.log('Resposta GET por ID válido:', response);
+
+      expect(response.status).to.equal(200);
+      expect(response.body._id).to.equal(livroId);
+      expect(response.body.titulo).to.eql(livro.titulo);
+      expect(response.body.autor).to.eql(livro.autor);
+      expect(response.body.editora).to.eql(livro.editora);
+      expect(response.body.anoPublicacao).to.eql(livro.anoPublicacao);
+      expect(response.body.numeroPaginas).to.eql(livro.numeroPaginas);
+    });
+  });
+
+  it("Deve consultar um livro com ID inválido", () => {
+    cy.request({
+      method: "GET",
+      url: `/api/livros/66dca827f1ad584c46cfd5d8`,
+      failOnStatusCode: false,
+    }).then((response) => {
+      // Adiciona log para debugging
+      cy.log('Resposta GET por ID inválido:', response);
+
+      expect(response.status).to.equal(404);
+      expect(response.body.error).to.equal("Livro não encontrado");
+    });
+  });
+});
+
