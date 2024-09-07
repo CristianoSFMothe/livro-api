@@ -106,3 +106,125 @@ describe("/livros GET por ID", () => {
   });
 });
 
+describe("/livros GET todos", () => {
+  const livros = [
+    {
+      titulo: "O Senhor dos Anéis",
+      autor: "J.R.R. Tolkien",
+      editora: "HarperCollins",
+      anoPublicacao: 1954,
+      numeroPaginas: 1178,
+    },
+    {
+      titulo: "Clean Code",
+      autor: "Robert C. Martin",
+      editora: "Prentice Hall",
+      anoPublicacao: 2008,
+      numeroPaginas: 464,
+    }
+  ];
+
+  before(() => {
+    // Limpar a coleção antes dos testes
+    cy.dropCollection("livros", {
+      database: "test",
+      failSilently: true,
+    }).then((result) => {
+      cy.log(result);
+    });
+
+    // Criar livros
+    livros.forEach((livro) => {
+      cy.postLivro(livro).then((response) => {
+        expect(response.status).to.equal(201);
+      });
+    });
+  });
+
+  it("Deve listar todos os livros", () => {
+    cy.request({
+      method: "GET",
+      url: "/api/livros",
+    }).then((response) => {
+      // Adiciona log para debugging
+      cy.log('Resposta GET todos os livros:', response);
+
+      expect(response.status).to.equal(200);
+      expect(response.body).to.have.lengthOf(livros.length);
+      
+      // Verificar se todos os livros estão na resposta
+      livros.forEach((livro) => {
+        const found = response.body.find(item => item.titulo === livro.titulo);
+        expect(found).to.not.be.undefined;
+        expect(found.autor).to.eql(livro.autor);
+        expect(found.editora).to.eql(livro.editora);
+        expect(found.anoPublicacao).to.eql(livro.anoPublicacao);
+        expect(found.numeroPaginas).to.eql(livro.numeroPaginas);
+      });
+    });
+  });
+});
+
+describe("/livros DELETE", () => {
+  let livroId;
+  const livro = {
+    titulo: "O Senhor dos Anéis",
+    autor: "J.R.R. Tolkien",
+    editora: "HarperCollins",
+    anoPublicacao: 1954,
+    numeroPaginas: 1178,
+  };
+
+  before(() => {
+    // Limpar a coleção antes dos testes
+    cy.dropCollection("livros", {
+      database: "test",
+      failSilently: true,
+    }).then((result) => {
+      cy.log(result);
+    });
+
+    // Criar um livro e armazenar o ID
+    cy.postLivro(livro).then((response) => {
+      expect(response.status).to.equal(201);
+      livroId = response.body._id;
+    });
+  });
+
+  it("Deve excluir um livro existente", () => {
+    cy.request({
+      method: "DELETE",
+      url: `/api/livros/${livroId}`,
+    }).then((response) => {
+      // Adiciona log para debugging
+      cy.log('Resposta DELETE livro:', response);
+
+      expect(response.status).to.equal(200);
+      expect(response.body.message).to.equal("Livro removido com sucesso");
+
+      // Verificar se o livro foi realmente excluído
+      cy.request({
+        method: "GET",
+        url: `/api/livros/${livroId}`,
+        failOnStatusCode: false,
+      }).then((response) => {
+        expect(response.status).to.equal(404);
+        expect(response.body.error).to.equal("Livro não encontrado");
+      });
+    });
+  });
+
+  it("Não deve excluir um livro com ID inválido", () => {
+    cy.request({
+      method: "DELETE",
+      url: `/api/livros/66dcd57bd42e5ea1e8f927b7`,
+      failOnStatusCode: false,
+    }).then((response) => {
+      // Adiciona log para debugging
+      cy.log('Resposta DELETE livro com ID inválido:', response);
+
+      expect(response.status).to.equal(404);
+      expect(response.body.error).to.equal("Livro não encontrado");
+    });
+  });
+});
